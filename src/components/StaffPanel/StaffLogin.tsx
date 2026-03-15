@@ -7,7 +7,7 @@ interface Props {
 }
 
 export default function StaffLogin({ onLogin }: Props) {
-  const { staff, loading } = useStaff();
+  const { staff, loading, error } = useStaff();
   const [selected, setSelected] = useState('');
 
   return (
@@ -22,7 +22,12 @@ export default function StaffLogin({ onLogin }: Props) {
         <p className="text-white/40 text-sm text-center mb-8">Select your name to continue</p>
 
         <div className="space-y-2 mb-6">
-          {loading ? (
+          {error ? (
+            <div className="text-center">
+              <p className="text-coral text-sm mb-2">{error}</p>
+              <button onClick={() => window.location.reload()} className="text-gold text-xs underline">Retry</button>
+            </div>
+          ) : loading ? (
             <p className="text-white/30 text-sm text-center">Loading...</p>
           ) : (
             staff
