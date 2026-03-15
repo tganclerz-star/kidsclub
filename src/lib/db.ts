@@ -3,10 +3,18 @@ import {
   query, where, orderBy, Timestamp, onSnapshot,
   QuerySnapshot, DocumentData,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, restGet, restQuery } from './firebase';
 import { Registration, Visit, StaffMember } from '../types';
 import { format } from 'date-fns';
 import { hashPin, verifyPin } from './crypto';
+
+/** Race an SDK promise against a timeout — rejects if SDK hangs */
+function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('SDK_TIMEOUT')), ms)),
+  ]);
+}
 
 // ── REGISTRATIONS ────────────────────────────────────────────────────────────
 
@@ -54,10 +62,15 @@ export async function getRegistrationByEmail(email: string): Promise<Registratio
 }
 
 export async function getAllRegistrations(): Promise<Registration[]> {
-  const snap = await getDocs(
-    query(collection(db, 'kc_registrations'), orderBy('createdAt', 'desc'))
-  );
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
+  try {
+    const snap = await withTimeout(getDocs(
+      query(collection(db, 'kc_registrations'), orderBy('createdAt', 'desc'))
+    ));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
+  } catch {
+    console.warn('Firestore SDK failed for registrations, using REST fallback');
+    return await restGet('kc_registrations') as Registration[];
+  }
 }
 
 // ── VISITS ───────────────────────────────────────────────────────────────────
@@ -148,8 +161,13 @@ export function subscribeTodayVisits(callback: (visits: Visit[]) => void): () =>
 }
 
 export async function getAllVisits(): Promise<Visit[]> {
-  const snap = await getDocs(query(collection(db, 'kc_visits'), orderBy('date', 'desc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Visit));
+  try {
+    const snap = await withTimeout(getDocs(query(collection(db, 'kc_visits'), orderBy('date', 'desc'))));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Visit));
+  } catch {
+    console.warn('Firestore SDK failed for visits, using REST fallback');
+    return await restGet('kc_visits') as Visit[];
+  }
 }
 
 // ── STAFF ─────────────────────────────────────────────────────────────────────
@@ -159,17 +177,23 @@ const DEFAULT_STAFF = ['Amruta', 'Shruti', 'Hannah', 'Anara', 'Akash', 'Yukesh']
 let seeding = false;
 
 export async function getStaff(): Promise<StaffMember[]> {
-  const snap = await getDocs(collection(db, 'kc_staff'));
-  if (snap.empty && !seeding) {
-    seeding = true;
-    const results: StaffMember[] = [];
-    for (const name of DEFAULT_STAFF) {
-      const ref = await addDoc(collection(db, 'kc_staff'), { name, role: 'Kids Club Staff', active: true });
-      results.push({ id: ref.id, name, role: 'Kids Club Staff', active: true });
+  try {
+    const snap = await withTimeout(getDocs(collection(db, 'kc_staff')));
+    if (snap.empty && !seeding) {
+      seeding = true;
+      const results: StaffMember[] = [];
+      for (const name of DEFAULT_STAFF) {
+        const ref = await addDoc(collection(db, 'kc_staff'), { name, role: 'Kids Club Staff', active: true });
+        results.push({ id: ref.id, name, role: 'Kids Club Staff', active: true });
+      }
+      return results;
     }
-    return results;
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as StaffMember));
+  } catch (err) {
+    console.warn('Firestore SDK failed, using REST API fallback:', err);
+    const docs = await restGet('kc_staff');
+    return docs as StaffMember[];
   }
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as StaffMember));
 }
 
 export async function addStaffMember(data: Omit<StaffMember, 'id'>): Promise<string> {
