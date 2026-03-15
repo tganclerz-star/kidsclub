@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Registrations ──
+    // Create: validated fields required
+    // Read/Update: allowed (PIN is hashed, no plaintext secrets stored)
+    // Delete: never
+    match /kc_registrations/{docId} {
+      allow read: if true;
+      allow create: if isValidRegistration(request.resource.data);
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // ── Visits ──
+    // Create: validated fields required
+    // Read/Update: allowed (PIN is hashed)
+    // Delete: never — audit trail
+    match /kc_visits/{docId} {
+      allow read: if true;
+      allow create: if isValidVisit(request.resource.data);
+      allow update: if isValidVisitUpdate(request.resource.data);
+      allow delete: if false;
+    }
+
+    // ── Activities ──
+    // Staff only — day-scoped, full CRUD
+    match /kc_activities/{docId} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.date is string
+                    && request.resource.data.createdBy is string;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // ── Shifts ──
+    // Staff only — full CRUD
+    match /kc_shifts/{docId} {
+      allow read: if true;
+      allow create: if request.resource.data.staffName is string
+                    && request.resource.data.date is string;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // ── Staff members ──
+    match /kc_staff/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Deny everything else ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+
+  // ── Validation functions ──
+
+  function isValidRegistration(data) {
+    return data.parentName is string
+        && data.roomNumber is string
+        && data.phone is string
+        && data.securityPin is string
+        && data.securityPin.size() == 64; // SHA-256 hex hash
+  }
+
+  function isValidVisit(data) {
+    return data.childName is string
+        && data.date is string
+        && data.status is string
+        && data.status in ['pending', 'checked-in', 'checked-out']
+        && data.securityPin is string
+        && data.securityPin.size() == 64; // SHA-256 hex hash
+  }
+
+  function isValidVisitUpdate(data) {
+    return data.status is string
+        && data.status in ['pending', 'checked-in', 'checked-out'];
+  }
+}

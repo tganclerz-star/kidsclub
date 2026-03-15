@@ -1,0 +1,159 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ─────────────────────────────────────────────────────────────── */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display {
+  font-family: 'Syne', sans-serif;
+}
+
+/* Scrollbar — minimal intelly style */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Components ───────────────────────────────────────────────────────── */
+
+@layer components {
+  /* Cards — intelly style: large radius, soft shadow */
+  .card {
+    @apply bg-white rounded-3xl p-6 shadow-card;
+  }
+
+  /* Inputs — min-h for good touch targets */
+  .input {
+    @apply w-full px-4 py-3 rounded-2xl border border-cream-dark bg-white text-ink text-sm
+           placeholder:text-ink/30
+           focus:outline-none focus:border-ink/30 focus:ring-0
+           transition-colors min-h-[44px];
+  }
+
+  .select {
+    @apply w-full px-4 py-3 rounded-2xl border border-cream-dark bg-white text-ink text-sm
+           focus:outline-none focus:border-ink/30 focus:ring-0
+           transition-colors appearance-none min-h-[44px]
+           bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%230a0a0a%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')]
+           bg-[length:12px] bg-[right_16px_center] bg-no-repeat;
+  }
+
+  .label {
+    @apply block text-[11px] font-semibold text-ink/50 uppercase tracking-wider mb-1.5;
+  }
+
+  /* Buttons — min-h for touch targets */
+  .btn-primary {
+    @apply bg-ink text-cream rounded-2xl px-5 py-2.5 font-semibold text-sm
+           hover:bg-ink-soft transition-all active:scale-[0.97] min-h-[44px];
+  }
+
+  .btn-gold {
+    @apply bg-gold text-ink rounded-2xl px-5 py-2.5 font-semibold text-sm
+           hover:brightness-105 transition-all active:scale-[0.97] min-h-[44px];
+  }
+
+  .btn-ghost {
+    @apply border border-cream-dark rounded-2xl px-5 py-2.5 text-sm font-medium text-ink
+           hover:bg-cream-dark/50 transition-all min-h-[44px];
+  }
+
+  /* Status badges — pill shape like intelly */
+  .status-in {
+    @apply inline-flex items-center bg-mint-light text-mint rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap;
+  }
+
+  .status-out {
+    @apply inline-flex items-center bg-cream-dark text-ink/50 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap;
+  }
+
+  .status-pending {
+    @apply inline-flex items-center bg-gold-light text-ink/70 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap;
+  }
+
+  /* PIN digit inputs — responsive sizing */
+  .pin-digit {
+    @apply w-12 h-14 sm:w-14 sm:h-16 text-center text-xl sm:text-2xl font-bold border-2 border-cream-dark rounded-2xl bg-white
+           focus:outline-none focus:border-ink/40 transition-colors;
+  }
+
+  /* Sidebar links — intelly dark nav style */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50
+           hover:text-white hover:bg-white/5 transition-all min-h-[44px];
+  }
+
+  .sidebar-link.active {
+    @apply text-white bg-white/10 font-semibold;
+  }
+
+  /* Sidebar section labels — Intelly style */
+  .sidebar-section-label {
+    @apply text-white/20 text-[10px] font-semibold uppercase tracking-wider px-3 mb-2 mt-1;
+  }
+
+  /* Schedule grid — time column + 7 day columns, scrollable on iPad */
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: 48px repeat(7, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    .schedule-grid {
+      grid-template-columns: 60px repeat(7, 1fr);
+    }
+  }
+
+  /* Schedule session cards */
+  .schedule-card-gold {
+    @apply bg-gold-light border border-gold/20;
+  }
+  .schedule-card-sky {
+    @apply bg-sky-light border border-sky/20;
+  }
+  .schedule-card-lavender {
+    @apply bg-lavender-light border border-lavender/20;
+  }
+}
+
+/* ─── Animations ───────────────────────────────────────────────────────── */
+
+@layer utilities {
+  /* Smooth touch scrolling for iOS */
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+  }
+}
