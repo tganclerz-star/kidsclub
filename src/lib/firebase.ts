@@ -77,3 +77,43 @@ export async function restQuery(collectionName: string, field: string, op: strin
   const json = await res.json();
   return json.filter((r: any) => r.document).map((r: any) => parseDoc(r.document));
 }
+
+// ── REST write helper ──
+
+function toFirestoreValue(val: any): any {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'string') return { stringValue: val };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') {
+    return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
+  }
+  if (Array.isArray(val)) {
+    return { arrayValue: { values: val.map(toFirestoreValue) } };
+  }
+  if (typeof val === 'object') {
+    const fields: any = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined) fields[k] = toFirestoreValue(v);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+export async function restCreate(collectionName: string, data: Record<string, any>): Promise<string> {
+  const fields: any = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v !== undefined) fields[k] = toFirestoreValue(v);
+  }
+  const res = await fetch(
+    `${REST_BASE}/${collectionName}?key=${firebaseConfig.apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    }
+  );
+  if (!res.ok) throw new Error(`Firestore REST write error: ${res.status}`);
+  const json = await res.json();
+  return json.name.split('/').pop();
+}

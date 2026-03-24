@@ -3,7 +3,7 @@ import {
   query, where, orderBy, Timestamp, onSnapshot,
   QuerySnapshot, DocumentData,
 } from 'firebase/firestore';
-import { db, restGet, restQuery } from './firebase';
+import { db, restGet, restQuery, restCreate } from './firebase';
 import { Registration, Visit, StaffMember } from '../types';
 import { format } from 'date-fns';
 import { hashPin, verifyPin } from './crypto';
@@ -20,45 +20,73 @@ function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
 
 export async function createRegistration(data: Registration): Promise<string> {
   const hashedPin = await hashPin(data.securityPin);
-  const docRef = await addDoc(collection(db, 'kc_registrations'), {
+  const payload = {
     ...data,
     securityPin: hashedPin,
     createdAt: Timestamp.now(),
-  });
-  return docRef.id;
+  };
+  try {
+    const docRef = await withTimeout(addDoc(collection(db, 'kc_registrations'), payload));
+    return docRef.id;
+  } catch {
+    console.warn('Firestore SDK failed for createRegistration, using REST fallback');
+    return await restCreate('kc_registrations', {
+      ...data,
+      securityPin: hashedPin,
+      createdAt: new Date().toISOString(),
+    });
+  }
 }
 
 export async function getRegistrationByRoom(roomNumber: string): Promise<Registration | null> {
-  const q = query(
-    collection(db, 'kc_registrations'),
-    where('roomNumber', '==', roomNumber)
-  );
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const d = snap.docs[0];
-  return { id: d.id, ...d.data() } as Registration;
+  try {
+    const q = query(
+      collection(db, 'kc_registrations'),
+      where('roomNumber', '==', roomNumber)
+    );
+    const snap = await withTimeout(getDocs(q));
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() } as Registration;
+  } catch {
+    console.warn('Firestore SDK failed for getRegistrationByRoom, using REST fallback');
+    const docs = await restQuery('kc_registrations', 'roomNumber', 'EQUAL', roomNumber);
+    return docs.length > 0 ? docs[0] as Registration : null;
+  }
 }
 
 export async function getRegistrationByPhone(phone: string): Promise<Registration | null> {
-  const q = query(
-    collection(db, 'kc_registrations'),
-    where('phone', '==', phone)
-  );
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const d = snap.docs[0];
-  return { id: d.id, ...d.data() } as Registration;
+  try {
+    const q = query(
+      collection(db, 'kc_registrations'),
+      where('phone', '==', phone)
+    );
+    const snap = await withTimeout(getDocs(q));
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() } as Registration;
+  } catch {
+    console.warn('Firestore SDK failed for getRegistrationByPhone, using REST fallback');
+    const docs = await restQuery('kc_registrations', 'phone', 'EQUAL', phone);
+    return docs.length > 0 ? docs[0] as Registration : null;
+  }
 }
 
 export async function getRegistrationByEmail(email: string): Promise<Registration | null> {
-  const q = query(
-    collection(db, 'kc_registrations'),
-    where('email', '==', email)
-  );
-  const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const d = snap.docs[0];
-  return { id: d.id, ...d.data() } as Registration;
+  try {
+    const q = query(
+      collection(db, 'kc_registrations'),
+      where('email', '==', email)
+    );
+    const snap = await withTimeout(getDocs(q));
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() } as Registration;
+  } catch {
+    console.warn('Firestore SDK failed for getRegistrationByEmail, using REST fallback');
+    const docs = await restQuery('kc_registrations', 'email', 'EQUAL', email);
+    return docs.length > 0 ? docs[0] as Registration : null;
+  }
 }
 
 export async function getAllRegistrations(): Promise<Registration[]> {
@@ -77,23 +105,39 @@ export async function getAllRegistrations(): Promise<Registration[]> {
 
 export async function getTodayVisitChildIds(registrationId: string): Promise<Set<string>> {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const q = query(
-    collection(db, 'kc_visits'),
-    where('registrationId', '==', registrationId),
-    where('date', '==', today)
-  );
-  const snap = await getDocs(q);
-  return new Set(snap.docs.map(d => d.data().childId as string));
+  try {
+    const q = query(
+      collection(db, 'kc_visits'),
+      where('registrationId', '==', registrationId),
+      where('date', '==', today)
+    );
+    const snap = await withTimeout(getDocs(q));
+    return new Set(snap.docs.map(d => d.data().childId as string));
+  } catch {
+    console.warn('Firestore SDK failed for getTodayVisitChildIds, using REST fallback');
+    const docs = await restQuery('kc_visits', 'registrationId', 'EQUAL', registrationId);
+    return new Set(
+      docs.filter((d: any) => d.date === today).map((d: any) => d.childId as string)
+    );
+  }
 }
 
 export async function createVisit(data: Omit<Visit, 'id'>, pinAlreadyHashed = false): Promise<string> {
   const securityPin = pinAlreadyHashed ? data.securityPin : await hashPin(data.securityPin);
-  const docRef = await addDoc(collection(db, 'kc_visits'), {
-    ...data,
-    securityPin,
-    createdAt: Timestamp.now(),
-  });
-  return docRef.id;
+  const payload = { ...data, securityPin };
+  try {
+    const docRef = await withTimeout(addDoc(collection(db, 'kc_visits'), {
+      ...payload,
+      createdAt: Timestamp.now(),
+    }));
+    return docRef.id;
+  } catch {
+    console.warn('Firestore SDK failed for createVisit, using REST fallback');
+    return await restCreate('kc_visits', {
+      ...payload,
+      createdAt: new Date().toISOString(),
+    });
+  }
 }
 
 export async function checkInChild(visitId: string, staffName: string, session: string, operaChecked: boolean): Promise<void> {
